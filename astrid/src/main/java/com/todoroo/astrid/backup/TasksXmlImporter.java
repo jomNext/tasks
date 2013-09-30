@@ -5,16 +5,6 @@
  */
 package com.todoroo.astrid.backup;
 
-import java.io.FileReader;
-import java.io.IOException;
-import java.util.Date;
-import java.util.LinkedHashSet;
-import java.util.StringTokenizer;
-
-import org.xmlpull.v1.XmlPullParser;
-import org.xmlpull.v1.XmlPullParserException;
-import org.xmlpull.v1.XmlPullParserFactory;
-
 import android.app.Activity;
 import android.app.AlertDialog;
 import android.app.ProgressDialog;
@@ -28,14 +18,12 @@ import android.util.Log;
 import android.view.WindowManager.BadTokenException;
 
 import com.google.ical.values.RRule;
-import org.tasks.R;
 import com.todoroo.andlib.data.AbstractModel;
 import com.todoroo.andlib.data.Property;
 import com.todoroo.andlib.data.Property.PropertyVisitor;
 import com.todoroo.andlib.data.TodorooCursor;
 import com.todoroo.andlib.service.ContextManager;
 import com.todoroo.andlib.service.ExceptionService;
-import com.todoroo.andlib.sql.Criterion;
 import com.todoroo.andlib.sql.Query;
 import com.todoroo.andlib.utility.DateUtilities;
 import com.todoroo.andlib.utility.DialogUtilities;
@@ -53,6 +41,20 @@ import com.todoroo.astrid.service.TagDataService;
 import com.todoroo.astrid.service.TaskService;
 import com.todoroo.astrid.service.UpgradeService;
 import com.todoroo.astrid.tags.TagService;
+import com.todoroo.astrid.tags.TaskToTagMetadata;
+
+import org.tasks.R;
+import org.xmlpull.v1.XmlPullParser;
+import org.xmlpull.v1.XmlPullParserException;
+import org.xmlpull.v1.XmlPullParserFactory;
+
+import java.io.FileReader;
+import java.io.IOException;
+import java.util.Date;
+import java.util.LinkedHashSet;
+import java.util.StringTokenizer;
+
+import static com.todoroo.andlib.sql.Criterion.and;
 
 public class TasksXmlImporter {
 
@@ -218,7 +220,9 @@ public class TasksXmlImporter {
         protected Metadata metadata = new Metadata();
         protected TagData tagdata = new TagData();
 
-        public Format2TaskImporter() { }
+        public Format2TaskImporter() {
+        }
+
         public Format2TaskImporter(XmlPullParser xpp) throws XmlPullParserException, IOException {
             this.xpp = xpp;
 
@@ -346,14 +350,16 @@ public class TasksXmlImporter {
             // Construct the TagData from Metadata
             // Fix for failed backup, Version before 4.6.10
             if (format == 2) {
+                String name = metadata.getValue(Metadata.VALUE1);
+                String key = metadata.getValue(Metadata.KEY);
                 TodorooCursor<TagData> cursor = tagdataService.query(Query.select(TagData.ID).
-                        where(TagData.NAME.eq(metadata.getValue(Metadata.VALUE1))));
+                        where(TagData.NAME.eq(name)));
                 try {
-                    if(cursor.getCount() == 0) {
+                    if(key.equals(TaskToTagMetadata.KEY) && cursor.getCount() == 0) {
                         tagdata.clear();
                         tagdata.setId(TagData.NO_ID);
                         tagdata.setUuid(metadata.getValue(Metadata.VALUE2));
-                        tagdata.setValue(TagData.NAME, metadata.getValue(Metadata.VALUE1));
+                        tagdata.setValue(TagData.NAME, name);
                         tagdataService.save(tagdata);
                     }
                 } finally {
